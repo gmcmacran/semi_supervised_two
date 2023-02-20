@@ -1,0 +1,74 @@
+---
+format:
+  gfm:
+    html-math-method: webtex
+jupyter: python3
+---
+
+## Repo Overview
+
+For all supervised machine learning projects, computing an accurate label is critical. It is fairly common to have bespoke data feeds for each client. This can cause an inability to create labels for some clients. Semi-supervised machine learning is a path forward when the X matrix can be created across many clients but y is only computatble for a subset. 
+
+In this repo, I test a semi-supervised method by asking
+
+-   Can I train a model using semi-supervised methods with high AUC on unseen data?
+-   Does this model do better than only using the known labels?
+-   How does AUC change as the proportion of unknown labels increases?
+-   If most of the labels are unknown, does the approach still work?
+
+## Simulation Setup
+
+Basic outline:
+
+-   Step 1: Create data.
+-   Step 2: Train a model using a semi-supervised method.
+-   Step 3: Train a model only using the known labels.
+-   Step 3: Compare AUCs.
+
+For each iteration, only fifty thousand data points are created (labeled and unlabeled). This process is repeated varying the proportion of data with unknown labels. Each combination of settings is repeated 5 times and an average is computed to reduce variability of AUC.
+
+## Results
+
+```{python}
+#| include: false
+import os
+import numpy as np
+import pandas as pd
+from plotnine import ggplot, aes, labs
+from plotnine import scale_x_continuous, scale_y_continuous
+from plotnine import geom_line, geom_point, geom_hline
+
+os.chdir('S:/Python/projects/semi_supervised_two')
+```
+
+### Data
+
+The first few rows look like
+```{python}
+#| echo: false
+result = pd.read_csv('data/result.csv')
+result = result.groupby(['prop'], as_index=False).mean().drop(['b'], axis=1)
+print(result.head())
+```
+
+For classification, match metric is the accuracy of the imputed labels and model metric is the difference in AUC between the two models. For regression, match metric is mean absolute error of the imputed response variable and model metric is the difference in M.A.E. of the two models.
+
+### Results
+
+```{python}
+#| echo: false
+temp = result.melt(id_vars=['prop'], value_vars=['AUC_semi', 'AUC_known'])
+(
+    ggplot(temp, aes(x = 'prop', y = 'value', color = 'variable'))
+    + geom_line()
+    + geom_point()
+    + scale_x_continuous(breaks = np.arange(.05, 1.05, .10))
+    + scale_y_continuous(breaks = np.arange(0, 1.01, .10))
+    + labs(x = "Proportion of Unknown Labels", y = "Test AUC")
+)
+```
+
+
+## Closing Thoughts
+
+This analysis shows semi-supervised works well when labels are missing at random. If labels are missing due to client specific charateriscits, results may vary.
